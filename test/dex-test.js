@@ -6,7 +6,7 @@
 
 
 const { expect } = require('chai'); 
-const { ethers } = require('hardhat'); 
+const { ethers, network } = require('hardhat'); 
 
 
 describe('DEX TEST', function () {
@@ -33,7 +33,7 @@ describe('DEX TEST', function () {
         account = await Account.deploy(); 
 
         Dex = await ethers.getContractFactory('Dex'); 
-        dex = await Dex.deploy(); 
+        dex = await Dex.deploy(account.address); 
         
         AaveToken = await ethers.getContractFactory('AaveToken'); 
         aaveToken = await AaveToken.deploy(); 
@@ -69,34 +69,30 @@ describe('DEX TEST', function () {
         await dex.createLimitOrder(0, aaveBytes, 10, 20);
         await dex.createLimitOrder(0, aaveBytes, 10, 10);
         await dex.createLimitOrder(0, aaveBytes, 10, 30);
-        await dex.createLimitOrder(0, aaveBytes, 10, 30);
-        await dex.createLimitOrder(0, aaveBytes, 10, 800);
-
-        let currentOrderBook = await dex.getOrderBook(aaveBytes, 0); 
-        console.log(currentOrderBook); 
+        await dex.createLimitOrder(0, aaveBytes, 10, 60);
 
         let orderBook = await dex.getOrderBook(aaveBytes, 0); // 0 is buy 1 is sell
             for (let i = 0; i < orderBook.length - 1; i++) {
-                expect(orderBook[i].price).to.be.greaterThanOrEqual(orderBook[i+1].price)
+                expect(Number(orderBook[i].price)).to.be.greaterThanOrEqual(Number(orderBook[i+1].price));
             }; 
 
     }); 
 
     it('Sell order book should be organized least to greatest', async function () {
-        let aaveBytes = await ethers.utils.formatBytes32String('Aave');
-        await aaveToken.approve(dex.address, 60); 
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');        
+        await aaveToken.mint(owner.address, 500); 
+        await aaveToken.approve(account.address, 500); 
 
-        await dex.createLimitOrder(1, aaveBytes, 20, 25);
-        await dex.createLimitOrder(1, aaveBytes, 20, 10);
-        await dex.createLimitOrder(1, aaveBytes, 20, 25);
+        let deposit = await account.deposit(500, aaveBytes); 
+        await deposit.wait();
 
-        // let currentOrderBook = await dex.getOrderBook(aaveBytes, 1); 
-        // console.log(currentOrderBook); 
-
+        await dex.createLimitOrder(1, aaveBytes, 2, 25);
+        await dex.createLimitOrder(1, aaveBytes, 1, 10);
+        await dex.createLimitOrder(1, aaveBytes, 10, 45);
 
         let orderBook = await dex.getOrderBook(aaveBytes, 1); // 0 is buy 1 is sell
             for (let i = 0; i < orderBook.length - 1; i++) {
-                expect(orderBook[i].price).to.be.lessThanOrEqual(orderBook[i+1].price)
+                expect(Number(orderBook[i].price)).to.be.lessThanOrEqual(Number(orderBook[i+1].price));
             }; 
 
     }); 

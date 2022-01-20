@@ -24,6 +24,10 @@ contract Account is Ownable{
         _; 
     }
 
+    function returnBalances(address _accountAddress, bytes32 _ticker) public view returns (uint256) {
+        return balances[_accountAddress][_ticker]; 
+    }
+
     function addToken(bytes32 _ticker, address _tokenAddress) onlyOwner external { //use external to save gas, because we won't need to call this function inside the contract 
         tokens[_ticker] = Token(_ticker, _tokenAddress); 
         tokenList.push(_ticker); 

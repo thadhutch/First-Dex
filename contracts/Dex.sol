@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2; // returning an Array 
 
 import './Account.sol'; 
+import 'hardhat/console.sol';
 
 contract Dex is Account {
 
@@ -23,7 +24,11 @@ contract Dex is Account {
     }
 
     uint256 public nextOrderId = 0; 
+    address public accountContract;
 
+    constructor (address _accountContract) {
+         accountContract = _accountContract; 
+    }
 
     mapping(bytes32 => mapping(uint256 => Order[])) orderBook; 
 
@@ -32,11 +37,14 @@ contract Dex is Account {
     }
 
     function createLimitOrder( orderType _orderType, bytes32 _ticker, uint256 _amount, uint256 _price) public {
+
+        Account account = Account(accountContract); 
+
         if(_orderType == orderType.Buy) {
             // require(balances[msg.sender]['ETH'] >= _amount.mul(_price));
         }
         else if(_orderType == orderType.Sell) {
-            require(balances[msg.sender][_ticker] >= _amount);
+            require(account.returnBalances(msg.sender, _ticker) >= _amount, 'User doesnt have enough tokens');
         }
 
         Order[] storage orders = orderBook[_ticker][uint(_orderType)]; 
@@ -45,26 +53,32 @@ contract Dex is Account {
         );
 
         //Bubble sort 
+        uint i = orders.length > 0 ? orders.length - 1 : 0; //if orders.length is greater than 0 i equals orders.length - 1. If orders.length is 0, i = 0. This sets i's initial value
 
         if(_orderType == orderType.Buy){
-            for (uint i = 0; i < orders.length - 1; i++) {
-                if(orders[i].price < orders[i+1].price) {
-                    Order memory orderToMove = orders[i]; 
-                    orders[i] = orders[i+1]; 
-                    orders[i+1] = orderToMove;
+            while(i > 0) {
+                if(orders[i - 1].price > orders[i].price) {
+                    break; 
                 }
+                Order memory tempOrder = orders[i - 1]; 
+                orders[i - 1] = orders[i]; 
+                orders[i] = tempOrder; 
+                i --; 
             }
         }
         else if(_orderType == orderType.Sell){
-            for (uint i = 0; i < orders.length - 1; i++) {
-                if(orders[i].price > orders[i+1].price) {
-                    Order memory orderToMove = orders[i]; 
-                    orders[i] = orders[i+1]; 
-                    orders[i+1] = orderToMove;
+            while (i > 0) {
+                if(orders[i - 1].price < orders[i].price) {
+                    break; 
                 }
+                Order memory tempOrder = orders[i - 1]; 
+                orders[i - 1] = orders[i]; 
+                orders[i] = tempOrder; 
+                i --; 
             }
         }
 
-        nextOrderId++; 
+        nextOrderId ++; 
+
     }
 }
