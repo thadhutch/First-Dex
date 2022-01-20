@@ -20,7 +20,8 @@ contract Dex is Account {
         orderType _orderType; 
         bytes32 ticker; 
         uint256 amount; 
-        uint256 price; 
+        uint256 price;
+        uint filled;  
     }
 
     uint256 public nextOrderId = 0; 
@@ -41,7 +42,7 @@ contract Dex is Account {
         Account account = Account(accountContract); 
 
         if(_orderType == orderType.Buy) {
-            // require(balances[msg.sender]['ETH'] >= _amount.mul(_price));
+            require(msg.sender.balance >= _amount.mul(_price)); 
         }
         else if(_orderType == orderType.Sell) {
             require(account.returnBalances(msg.sender, _ticker) >= _amount, 'User doesnt have enough tokens');
@@ -49,7 +50,7 @@ contract Dex is Account {
 
         Order[] storage orders = orderBook[_ticker][uint(_orderType)]; 
         orders.push(
-            Order(nextOrderId, msg.sender, _orderType, _ticker, _amount, _price)
+            Order(nextOrderId, msg.sender, _orderType, _ticker, _amount, _price, 0)
         );
 
         //Bubble sort 
@@ -80,5 +81,33 @@ contract Dex is Account {
 
         nextOrderId ++; 
 
+    }
+
+    function createMarketOrder(orderType _orderType, bytes32 _ticker, uint256 _amount) public {
+
+        Account account = Account(accountContract); 
+
+        uint theOrderType; 
+        if(_orderType == orderType.Buy) {
+            theOrderType = 1;
+        }
+        else {
+            require(account.returnBalances(msg.sender, _ticker) >= _amount, 'Insufficient token balance');
+            theOrderType = 0;
+        }
+        
+        Order[] storage orders = orderBook[_ticker][theOrderType]; 
+
+        uint totalFilled;
+
+        for(uint i = 0; i < orders.length && totalFilled < _amount; i ++) {
+            //How much we can fill fdrom order[i]
+            //update totalFilled
+            
+            //Execute the trade & and transfer balances 
+            //Verify buyers and sellers have enough balances 
+        }
+
+        //Loop through the orderbook and remove fully filled orders
     }
 }

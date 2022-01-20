@@ -45,7 +45,7 @@ describe('DEX TEST', function () {
         expect(Number(ownerBalance)).to.be.greaterThan(0); 
     }); 
 
-    it('Account needs to have a greater token balance than the sell order amount', async function () {
+    it('Account needs to have a greater token balance than the sell limit order amount', async function () {
         let aaveBytes = await ethers.utils.formatBytes32String('Aave');
 
         let addTokenFunc = await account.addToken(aaveBytes, aaveToken.address); 
@@ -96,4 +96,57 @@ describe('DEX TEST', function () {
             }; 
 
     }); 
+
+    it('Market orders can still be submitted even if order book is empty', async function () {
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');        
+
+        await dex.createMarketOrder(0, aaveBytes, 20); 
+        expect(dex.marketOrders.length).to.be.greaterThan(0); 
+    });
+
+    it('Market orders are filled until order book is empty or the order is finished', async function () {
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');
+
+        let intialLength = await dex.getOrderBook(aaveBytes, 1).length; 
+        console.log(intialLength); 
+
+        await dex.createLimitOrder(1, aaveBytes, 50); 
+        await dex.createMarketOrder(0, aaveBytes, 100);
+        let marketLength = await dex.getMarketOrders().length
+        console.log(`Market Length is: ${marketLength}`); 
+        
+        let finalLength = await dex.getOrderBook(aaveBytes, 1).length; 
+        console.log(finalLength); 
+        expect(finalLength).to.equal(0);
+        expect(marketLength).to.equal(1); 
+
+    });
+
+    it('Eth balance of buyer decreases on buy order', async function () {
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');        
+        let initialAccountBalance = await ethers.provider.getBalance(owner.address); 
+        await dex.createMarketOrder(0, aaveBytes, 20); 
+        let finalAccountBalance = await ethers.provider.getBalance(owner.address); 
+        expect(Number(initialAccountBalance)).to.be.greaterThan(Number(finalAccountBalance));
+    });
+
+    it('token balance of sellers decreases on sell order', async function () {
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');        
+        let initialAccountBalance = await aaveToken.balanceOf(owner.address); 
+        await dex.createMarketOrder(1, aaveBytes, 20); 
+        let finalAccountBalance = await aaveToken.balanceOf(owner.address); 
+        expect(Number(initialAccountBalance)).to.be.greaterThan(Number(finalAccountBalance)); 
+    });
+
+    it('Filled limit orders are removed from the order book', async function () {
+        let aaveBytes = await ethers.utils.formatBytes32String('Aave');        
+
+        await dex.createLimitOrder(1, aaveBytes, 20, 30); 
+        let intialLength = await dex.getOrderBook(aaveBytes, 1).length; 
+        console.log(intialLength);
+        await dex.createMarketOrder(0, aaveBytes, 20); 
+        let finalLength = await dex.getOrderBook(aaveBytes, 1).length; 
+        console.log(finalLength);
+        expect(finalLength).to.equal(0);
+    });
 }); 
