@@ -18,15 +18,27 @@ contract Account is Ownable{
 
     mapping(bytes32 => Token) public tokens; 
     mapping(address => mapping(bytes32 => uint256)) public balances; //bytes will be used to track the different tokens
+    mapping(address => bool) contractWhitelist; 
 
     modifier tokenAddressCheck(bytes32 _ticker) {
         require(tokens[_ticker].tokenAddress != address(0), 'This token isnt supported');
         _; 
     }
 
+    function addContract(address _contract) onlyOwner external {
+        contractWhitelist[_contract] = true; 
+    } 
+
+    function editBalances(address _account, bytes32 _ticker, uint256 _amount) external {
+        require(contractWhitelist[msg.sender] == true, 'address isnt whitelisted to interact with accounts'); 
+        balances[_account][_ticker] = _amount; 
+    }
+    
+
     function returnBalances(address _accountAddress, bytes32 _ticker) public view returns (uint256) {
         return balances[_accountAddress][_ticker]; 
     }
+
 
     function addToken(bytes32 _ticker, address _tokenAddress) onlyOwner external { //use external to save gas, because we won't need to call this function inside the contract 
         tokens[_ticker] = Token(_ticker, _tokenAddress); 

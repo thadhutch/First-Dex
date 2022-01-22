@@ -47,6 +47,8 @@ describe('DEX TEST', function () {
 
     it('Account needs to have a greater token balance than the sell limit order amount', async function () {
         let aaveBytes = await ethers.utils.formatBytes32String('Aave');
+        let wethBytes = await ethers.utils.formatBytes32String('WETH');
+        console.log(wethBytes);
 
         let addTokenFunc = await account.addToken(aaveBytes, aaveToken.address); 
         await addTokenFunc.wait();  
@@ -119,7 +121,6 @@ describe('DEX TEST', function () {
         console.log(finalLength); 
         expect(finalLength).to.equal(0);
         expect(marketLength).to.equal(1); 
-
     });
 
     it('Eth balance of buyer decreases on buy order', async function () {

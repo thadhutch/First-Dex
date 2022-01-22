@@ -24,14 +24,16 @@ contract Dex is Account {
         uint filled;  
     }
 
+
     uint256 public nextOrderId = 0; 
     address public accountContract;
+
 
     constructor (address _accountContract) {
          accountContract = _accountContract; 
     }
 
-    mapping(bytes32 => mapping(uint256 => Order[])) orderBook; 
+    mapping(bytes32 => mapping(uint256 => Order[])) orderBook;
 
     function getOrderBook(bytes32 _ticker, orderType _orderType) public view returns (Order[] memory) {
         return orderBook[_ticker][uint(_orderType)]; 
@@ -40,6 +42,7 @@ contract Dex is Account {
     function createLimitOrder( orderType _orderType, bytes32 _ticker, uint256 _amount, uint256 _price) public {
 
         Account account = Account(accountContract); 
+
 
         if(_orderType == orderType.Buy) {
             require(msg.sender.balance >= _amount.mul(_price)); 
@@ -98,16 +101,69 @@ contract Dex is Account {
         
         Order[] storage orders = orderBook[_ticker][theOrderType]; 
 
-        uint totalFilled;
+        uint totalFilled = 0;
 
         for(uint i = 0; i < orders.length && totalFilled < _amount; i ++) {
-            //How much we can fill fdrom order[i]
-            //update totalFilled
+            uint leftToFill = _amount.sub(totalFilled); 
+            uint avaliableToFill = orders[i].amount.sub(orders[i].filled); 
+            uint filled = 0; 
+            if(avaliableToFill > leftToFill) {
+                filled = leftToFill; 
+            } 
+            else {
+                filled = avaliableToFill; 
+            }
+            totalFilled = totalFilled.add(filled); 
+            orders[i].filled = orders[i].filled.add(filled); 
+            uint cost = filled.mul(orders[i].price); 
+
+            if(_orderType == orderType.Buy) {
+                require(msg.sender.balance >= cost);
+                address payable recipient; 
+                address payable sender; 
+
+                uint currentBuyerTokenBalance = account.returnBalances(msg.sender, _ticker);
+                uint newBuyerTokenBalance = currentBuyerTokenBalance.add(filled); 
+                account.editBalances(msg.sender, _ticker, newBuyerTokenBalance); 
+
+                uint currentBuyerWETHBalance = account.returnBalances(msg.sender, _ticker);
+                uint newBuyerWETHBalance = currentBuyerWETHBalance.sub(cost); 
+                account.editBalances(msg.sender, _ticker, newBuyerWETHBalance); 
+                
+
+                uint currentSellerTokenBalance = account.returnBalances(orders[i].trader, _ticker);
+                uint newSellerTokenBalance = currentSellerTokenBalance.sub(filled); 
+                account.editBalances(orders[i].trader, _ticker, newSellerTokenBalance); 
+
+                // would be same for WETH
+                
+            }
+            else if(_orderType == orderType.Sell) {
+                uint currentSellerBalance = account.returnBalances(msg.sender, _ticker);
+                uint newSellerBalance = currentSellerBalance.sub(filled); 
+                account.editBalances(msg.sender, _ticker, newSellerBalance); 
+
+                uint currentBuyerBalance = account.returnBalances(orders[i].trader, _ticker);
+                uint newBuyerBalance = currentBuyerBalance.add(filled); 
+                account.editBalances(orders[i].trader, _ticker, newBuyerBalance);
+
+                //would be same for WETH
+
+            }
             
-            //Execute the trade & and transfer balances 
-            //Verify buyers and sellers have enough balances 
         }
 
-        //Loop through the orderbook and remove fully filled orders
+        while(orders[i].filled == orders[i].amount && orders.length > 0) {
+            for(uint i = 0; i < orders.length; i++) {
+                orders[i] = orders[i + 1]; 
+            }
+            orders.pop(); 
+        }
+    }
+
+       
+    }
+
+    receive() external payable { //allows contract to recieve ether
     }
 }
